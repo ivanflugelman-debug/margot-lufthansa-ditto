@@ -1,24 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import lufthansaLogo from "@/assets/lufthansa-logo.svg";
 import heroTravelBg from "@/assets/hero-travel-bg.jpg";
 import destinationBg from "@/assets/destination-bg.jpg";
 import margotTeaser from "@/assets/margot-teaser.mp4";
 import lufthansaA380 from "@/assets/lufthansa-a380.png";
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'widget-embed': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
-        'widget-config-url'?: string;
-        'widget-config'?: string;
-      }, HTMLElement>;
-    }
-  }
-}
-
 const Index = () => {
-  const [showWidget, setShowWidget] = useState(false);
+  const [iframeUrl] = useState("https://embed.next.journee.live/aivideochat/j3wfs0gci");
+  const [showIframe, setShowIframe] = useState(false);
   const [mousePosition, setMousePosition] = useState({
     x: 0,
     y: 0
@@ -29,7 +18,6 @@ const Index = () => {
   });
   const [isHovering, setIsHovering] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
-  const widgetContainerRef = useRef<HTMLDivElement>(null);
 
   // Create smooth following effect for cursor label
   useEffect(() => {
@@ -45,22 +33,9 @@ const Index = () => {
     return () => cancelAnimationFrame(animationFrameId);
   }, [mousePosition]);
 
-  // Listen for Ojin tool calls (e.g. show_booking_popup)
+  // Subscribe to booking popup Realtime channel when iframe is shown
   useEffect(() => {
-    const handleToolCall = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      console.log('Ojin tool call:', detail);
-      if (detail?.name === 'show_booking_popup') {
-        setShowPopup(true);
-      }
-    };
-    window.addEventListener('ojinToolCall', handleToolCall);
-    return () => window.removeEventListener('ojinToolCall', handleToolCall);
-  }, []);
-
-  // Subscribe to booking popup Realtime channel when widget is shown
-  useEffect(() => {
-    if (!showWidget) return;
+    if (!showIframe) return;
     console.log('Subscribing to booking-popup channel');
     const channel = supabase.channel('booking-popup').on('broadcast', {
       event: 'show_popup'
@@ -72,8 +47,7 @@ const Index = () => {
       console.log('Unsubscribing from booking-popup channel');
       supabase.removeChannel(channel);
     };
-  }, [showWidget]);
-
+  }, [showIframe]);
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setMousePosition({
@@ -109,7 +83,7 @@ const Index = () => {
         {/* Digital Human Section */}
         <section className="max-w-5xl mx-auto mb-16 animate-fade-in">
           <h1 className="text-4xl font-bold text-foreground text-center mb-6">Margot</h1>
-          <div className="flex justify-center relative" ref={widgetContainerRef}>
+          <div className="bg-card rounded-2xl shadow-elegant border border-border overflow-visible relative">
             {/* Booking Popup */}
             {showPopup && <div
                 className="absolute top-[35%] -translate-y-1/2 right-0 translate-x-1/2 z-50 animate-popup-fade-in w-[240px] opacity-95"
@@ -136,8 +110,27 @@ const Index = () => {
                 </div>
               </div>}
 
-            <div className="relative overflow-hidden rounded-2xl" style={{ width: '512px', height: '512px' }}>
-              <widget-embed widget-config-url="/margot-config.json" style={{ display: 'block', width: '512px', height: '512px', borderRadius: '16px', overflow: 'hidden' }} />
+            <div className="aspect-video bg-muted/30 relative overflow-hidden rounded-2xl">
+              {!showIframe ? <div className="relative w-full h-full cursor-none overflow-hidden" onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)} onClick={() => setShowIframe(true)}>
+                  {/* Looping video */}
+                  <video autoPlay loop muted playsInline className="w-full h-full object-cover">
+                    <source src={margotTeaser} type="video/mp4" />
+                  </video>
+
+                  {/* Dark gradient overlay */}
+                  <div className={`absolute inset-0 bg-gradient-to-t from-black/40 to-transparent transition-opacity duration-300 ${isHovering ? 'opacity-30' : 'opacity-100'}`} />
+
+                  {/* Custom cursor label */}
+                  <div className="absolute pointer-events-none z-10" style={{
+                left: `${delayedPosition.x}px`,
+                top: `${delayedPosition.y}px`,
+                transform: 'translate(-50%, -50%)'
+              }}>
+                    <span className={`px-4 py-2 rounded-full text-sm font-medium shadow-lg whitespace-nowrap transition-colors duration-300 ${isHovering ? 'bg-[#FFC72C]' : 'bg-white'} text-black`}>
+                      Tap to call
+                    </span>
+                  </div>
+                </div> : <iframe src={iframeUrl} title="Margot - Lufthansa Digital Assistant" className="w-full h-[108%] rounded-t-2xl animate-fade-in" allow="microphone; camera" />}
             </div>
           </div>
           <div className="text-center mt-6">
@@ -203,7 +196,7 @@ const Index = () => {
                 </div>
               </div>
             </a>
-            
+
             <a href="https://www.lufthansa.com/de/en/articles/explore-the-world" className="group">
               <div className="bg-card rounded-xl overflow-hidden border border-border hover:shadow-elegant transition-shadow">
                 <div className="aspect-video bg-muted overflow-hidden">
@@ -217,7 +210,7 @@ const Index = () => {
                 </div>
               </div>
             </a>
-            
+
             <a href="https://www.lufthansa.com/de/en/articles/explore-the-world" className="group">
               <div className="bg-card rounded-xl overflow-hidden border border-border hover:shadow-elegant transition-shadow">
                 <div className="aspect-video bg-muted overflow-hidden">
